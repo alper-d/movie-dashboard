@@ -12,7 +12,7 @@
             hide-no-data
             item-text="Description"
             item-value="imdbID"
-            label="Public APIs"
+            label="Search Movie"
             placeholder="Start typing to Search"
             prepend-icon="mdi-database-search"
             return-object
@@ -20,9 +20,11 @@
             )
     
     v-divider
-    v-container(v-if="paginationLoading" fluid)
+    v-container(v-if="paginationLoading || retrieveError" fluid)
         v-row(align="center" justify="center" class="my-1")
-            v-progress-circular( indeterminate color="red") 
+            v-progress-circular(v-if="paginationLoading" indeterminate color="red") 
+            v-alert(v-if="retrieveError" color="red") "Couldn't retrieve data"
+
     v-expand-transition
         v-container(v-if="detailBlock && details" fluid)
             v-row(align="center" justify="center")
@@ -37,7 +39,7 @@
 
     v-expand-transition
         v-container(v-if="paginatedData" fluid)
-            v-pagination(v-model="page" :length="paginationLength" circle)
+            v-pagination(v-if="paginatedData.length" v-model="page" :length="paginationLength" circle)
             v-row
                 v-col(v-for="(item, i) in paginatedData" :key="i" cols="12" sm="2" md="3")
                     
@@ -72,6 +74,7 @@ import Vue from 'vue'
         focusedMovie:null,
         details:null,
         detailBlock: false,
+        retrieveError:false,
     }),
 
     computed: {
@@ -96,12 +99,14 @@ import Vue from 'vue'
         },
     },
     methods: {
-        searchQuery (changePagination) {
+        searchQuery (changePagination="",query="") {
+            this.retrieveError = false,
             this.paginationLoading = true
-            const val= this.search
+            const val = query==="" ? this.search : query
             const page = changePagination==="pagination" ? this.page : 1 
+            console.log("searchQuery " + val + " "+page)
 
-            fetch(`http://www.omdbapi.com/?apikey=be1732ea&s=${val}&page=${page}`)
+            fetch(`http://www.omdbapi.com/?apikey=be1732ea&s=${val}&page=${page}&y=2020`)
                 .then(res => res.json())
                 .then(res => {
                     const { totalResults:count, Search:paginatedData } = res
@@ -114,6 +119,7 @@ import Vue from 'vue'
                             this.paginatedData = paginatedData.map(e => {
                                 return Object.assign({}, e, {showDetail: false})
                             })
+                            
                             this.paginationLength = Math.ceil((+count)/this.maxPerPage)
                             break
                         }
@@ -131,10 +137,13 @@ import Vue from 'vue'
                     console.log(err)
                     this.paginatedData= []
                     this.paginationLength = 1
+                    this.retrieveError = true
                 }).finally(() => {this.paginationLoading = false})
         },
         setData(movie=null){
+            console.log("setData")
             const imdbID = movie
+            this.retrieveError=false
             this.paginationLoading = true
             fetch(`http://www.omdbapi.com/?apikey=be1732ea&i=${imdbID}` )
                 .then(res => res.json())
@@ -146,6 +155,7 @@ import Vue from 'vue'
                 })
                 .catch(err => {
                     console.log(err)
+                    this.retrieveError=true
                 }).finally(() => {this.paginationLoading = false}) 
         },
         cardClicked(imdbID, cardIndex) {
@@ -165,16 +175,15 @@ import Vue from 'vue'
 
     watch: {
         model(){
-            console.log("model watch")
+            console.log(this.model)
             this.$refs.combobox.isMenuActive = false
             this.isLoading = true
             this.detailBlock = false
             if(typeof(this.model) === 'object' && this.model !== null){
                 this.detailBlock = true
-                this.setData(this.model.imdbID)
-                this.searchQuery("full_search")
+                this.searchQuery("full_search",this.model.Title)
             }else{
-                this.searchQuery("full_search")
+                this.searchQuery("full_search",this.model.Title)
             }
             this.isLoading = false
         },
