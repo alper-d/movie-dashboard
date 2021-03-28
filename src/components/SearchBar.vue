@@ -1,5 +1,5 @@
 <template lang="pug">
-  v-card(colo="red lighten-2" dark)
+  v-card(dark)
     v-card-text
         v-combobox(  
             ref="combobox"  
